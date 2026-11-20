@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobScanner</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --line: #e2e5ea; --text: #1c2330; --muted: #67707f;
+    --accent: #2b5aa7; --new: #1c7a4a; --warn: #a4561b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+  h1 { font-size: 19px; margin: 0; }
+  .grow { flex: 1; }
+  .muted { color: var(--muted); font-size: 13px; }
+  button { font: inherit; padding: 7px 12px; border: 1px solid var(--line); background: var(--card); border-radius: 7px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  main { max-width: 1080px; margin: 0 auto; padding: 18px 20px 60px; }
+  nav { display: flex; gap: 6px; margin-bottom: 14px; }
+  nav button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .bar select, .bar input { font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); }
+  .bar input[type=search] { flex: 1; min-width: 180px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .card.fresh { border-left: 4px solid var(--new); }
+  .row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .title { font-size: 16px; font-weight: 600; color: var(--accent); text-decoration: none; }
+  .title:hover { text-decoration: underline; }
+  .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; background: #e6f4ec; color: var(--new); }
+  .chip { font-size: 12px; background: #eef1f6; color: var(--muted); padding: 2px 8px; border-radius: 999px; }
+  .chip.salary { background: #fdf3e3; color: var(--warn); }
+  .meta { color: var(--muted); font-size: 13px; }
+  .card select { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  pre.desc { white-space: pre-wrap; font: inherit; font-size: 13px; color: #333b47; background: #fafbfc; border: 1px solid var(--line); border-radius: 8px; padding: 10px; max-height: 360px; overflow: auto; }
+  input.note { width: 100%; font: inherit; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+  th { background: #f1f3f7; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  a { color: var(--accent); }
+  #log { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; background: #1b2130; color: #d7dee9; padding: 10px 12px; border-radius: 8px; max-height: 160px; overflow: auto; margin-top: 10px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>JobScanner</h1>
+  <span class="muted" id="lastSync"></span>
+  <span class="grow"></span>
+  <button id="btnSync" class="primary">Aktualizovat nabídky</button>
+  <button id="btnImport">Import firem z ČSÚ</button>
+</header>
+
+<main>
+  <nav>
+    <button data-tab="offers" class="active">Nabídky</button>
+    <button data-tab="companies">Firmy</button>
+  </nav>
+
+  <section id="tab-offers">
+    <div class="bar">
+      <select id="fCity">
+        <option value="">Vše</option>
+        <option value="Hradec Králové">Hradec Králové</option>
+        <option value="Pardubice">Pardubice</option>
+        <option value="remote">Jen remote</option>
+      </select>
+      <select id="fSource">
+        <option value="">Všechny zdroje</option>
+        <option value="jobs.cz">jobs.cz</option>
+        <option value="startupjobs">startupjobs.cz</option>
+      </select>
+      <select id="fStatus">
+        <option value="">Všechny stavy</option>
+        <option value="new">Nové</option>
+        <option value="applied">Posláno</option>
+        <option value="replied">Odpověď</option>
+        <option value="rejected">Zamítnuto</option>
+        <option value="skipped">Nezajímá</option>
+      </select>
+      <input type="search" id="fQ" placeholder="Hledat v názvu, firmě, popisu…">
+    </div>
+    <div id="offers"></div>
+  </section>
+
+  <section id="tab-companies" class="hidden">
+    <div class="bar">
+      <input type="search" id="cQ" placeholder="Hledat firmu…">
+      <select id="cStatus">
+        <option value="">Všechny stavy</option>
+        <option value="new">Neosloveno</option>
+        <option value="contacted">Osloveno</option>
+        <option value="replied">Odpověď</option>
+        <option value="rejected">Ne</option>
+      </select>
+    </div>
+    <table>
+      <thead><tr><th>Firma</th><th>Město</th><th>Obor</th><th>Kontakt</th><th>Stav</th><th></th></tr></thead>
+      <tbody id="companies"></tbody>
+    </table>
+  </section>
+
+  <div id="log" class="hidden"></div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const e = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('cs-CZ') : '';
+
+const OFFER_STATUS = { new: 'nové', applied: 'posláno', replied: 'odpověď', rejected: 'zamítnuto', skipped: 'nezajímá' };
+const COMPANY_STATUS = { new: 'neosloveno', contacted: 'osloveno', replied: 'odpověď', rejected: 'ne' };
+const NACE = { 58: 'Vydávání softwaru', 62: 'Programování a IT poradenství', 63: 'Informační služby' };
+const MAIL_BODY = 'Dobrý den,\n\nposílám životopis a rád bych se ucházel o juniorskou pozici v oblasti vývoje softwaru. Jsem student aplikované informatiky z Hradce Králové a hledám práci v Hradci Králové, Pardubicích nebo na dálku.\n\nS pozdravem\n';
+
+let offers = [];
+let companies = [];
+
+async function api(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error(res.status + ' ' + url);
+  return res.json();
+}
+
+function offerCard(o) {
+  const salary = o.salary_text || (o.salary_min ? o.salary_min + (o.salary_max ? '–' + o.salary_max : '+') + ' Kč' : '');
+  const options = Object.entries(OFFER_STATUS).map(([k, v]) => `<option value="${k}"${k === o.status ? ' selected' : ''}>${v}</option>`).join('');
+  return `<article class="card ${o.is_new ? 'fresh' : ''}" data-id="${o.id}">
+    <div class="row">
+      ${o.is_new ? '<span class="badge">nové</span>' : ''}
+      <a class="title" href="${e(o.url)}" target="_blank" rel="noopener" data-read="${o.id}">${e(o.title)}</a>
+      ${!o.active ? '<span class="chip">už není v nabídce</span>' : ''}
+    </div>
+    <div class="meta">${e(o.company || '—')} · ${e(o.city === 'remote' ? 'remote' : (o.location || o.city || '—'))} · ${e(o.source)} · přidáno ${fmtDate(o.first_seen_at)}</div>
+    <div class="row" style="margin-top:6px">
+      ${salary ? `<span class="chip salary">${e(salary)}</span>` : ''}
+      ${o.employment ? `<span class="chip">${e(o.employment)}</span>` : ''}
+      ${o.match_why ? `<span class="chip" title="proč nabídka prošla filtrem">${e(o.match_why)}</span>` : ''}
+      <span class="grow"></span>
+      <select data-status="${o.id}">${options}</select>
+    </div>
+    <details>
+      <summary>popis a poznámka</summary>
+      <pre class="desc">${e(o.description || 'Bez popisu.')}</pre>
+      <input class="note" data-note="${o.id}" placeholder="Poznámka (kdy posláno, kontakt, …)" value="${e(o.note || '')}">
+    </details>
+  </article>`;
+}
+
+function companyRow(c) {
+  const options = Object.entries(COMPANY_STATUS).map(([k, v]) => `<option value="${k}"${k === c.status ? ' selected' : ''}>${v}</option>`).join('');
+  const mail = c.email ? `mailto:${e(c.email)}?subject=${encodeURIComponent('Zájem o práci – vývoj softwaru')}&body=${encodeURIComponent(MAIL_BODY)}` : '';
+  const contact = [c.email ? `<a href="${mail}">${e(c.email)}</a>` : '', c.careers_url ? `<a href="${e(c.careers_url)}" target="_blank" rel="noopener">web</a>` : ''].filter(Boolean).join(' · ') || '—';
+  return `<tr>
+    <td>${e(c.name)}</td>
+    <td>${e(c.city || '')}</td>
+    <td>${e(NACE[String(c.nace || '').slice(0, 2)] || c.nace || '')}</td>
+    <td>${contact}</td>
+    <td><select data-cstatus="${e(c.key)}">${options}</select></td>
+    <td><button data-contact="${e(c.key)}" data-email="${e(c.email || '')}" data-web="${e(c.careers_url || '')}">Oslovit</button></td>
+  </tr>`;
+}
+
+function renderOffers() {
+  $('#offers').innerHTML = offers.length
+    ? offers.map(offerCard).join('')
+    : '<p class="muted">Nic tu není. Klikni na „Aktualizovat nabídky“.</p>';
+}
+
+function renderCompanies() {
+  $('#companies').innerHTML = companies.length
+    ? companies.map(companyRow).join('')
+    : '<tr><td colspan="6" class="muted">Zatím žádné firmy. Klikni na „Import firem z ČSÚ“ (stáhne ~545 MB) nebo počkej, až se načtou firmy z nabídek.</td></tr>';
+}
+
+async function loadOffers() {
+  const q = new URLSearchParams();
+  if ($('#fCity').value) q.set('city', $('#fCity').value);
+  if ($('#fSource').value) q.set('source', $('#fSource').value);
+  if ($('#fStatus').value) q.set('status', $('#fStatus').value);
+  if ($('#fQ').value.trim()) q.set('q', $('#fQ').value.trim());
+  offers = await api('/api/offers?' + q);
+  renderOffers();
+}
+
+async function loadCompanies() {
+  const q = new URLSearchParams();
+  if ($('#cQ').value.trim()) q.set('q', $('#cQ').value.trim());
+  companies = await api('/api/companies?' + q);
+  if ($('#cStatus').value) companies = companies.filter(c => c.status === $('#cStatus').value);
+  renderCompanies();
+}
+
+async function loadStatus() {
+  const s = await api('/api/status');
+  $('#lastSync').textContent = s.lastSync ? 'Naposledy staženo ' + new Date(s.lastSync).toLocaleString('cs-CZ') : 'Ještě nestaženo';
+  const log = $('#log');
+  $('#btnSync').disabled = s.running;
+  $('#btnImport').disabled = s.running;
+  if (s.running || s.error) {
+    log.classList.remove('hidden');
+    log.textContent = (s.log || []).join('\n') + (s.error ? '\nCHYBA: ' + s.error : '');
+    log.scrollTop = log.scrollHeight;
+  } else if (s.log && s.log.length) {
+    log.classList.remove('hidden');
+    log.textContent = s.log.join('\n');
+  }
+  return s;
+}
+
+async function startJob(button, url) {
+  button.disabled = true;
+  await api(url, { method: 'POST' });
+  await loadStatus();
+  poll();
+}
+
+let timer = null;
+async function poll() {
+  clearTimeout(timer);
+  const s = await loadStatus();
+  if (s.running) {
+    timer = setTimeout(poll, 2000);
+  } else {
+    await Promise.all([loadOffers(), loadCompanies()]);
+  }
+}
+
+// události
+function showTab(name) {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
+  $('#tab-offers').classList.toggle('hidden', name !== 'offers');
+  $('#tab-companies').classList.toggle('hidden', name !== 'companies');
+  history.replaceState(null, '', '#' + name);
+}
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+showTab(location.hash === '#companies' ? 'companies' : 'offers');
+
+['#fCity', '#fSource', '#fStatus'].forEach(s => $(s).onchange = loadOffers);
+$('#fQ').oninput = () => { clearTimeout(window.qT); window.qT = setTimeout(loadOffers, 250); };
+$('#cQ').oninput = () => { clearTimeout(window.cT); window.cT = setTimeout(loadCompanies, 250); };
+$('#cStatus').onchange = loadCompanies;
+$('#btnSync').onclick = () => startJob($('#btnSync'), '/api/sync');
+$('#btnImport').onclick = () => startJob($('#btnImport'), '/api/companies/import');
+
+$('#offers').addEventListener('change', async ev => {
+  const el = ev.target;
+  if (el.dataset.status) {
+    const patch = { status: el.value, isNew: false };
+    await api('/api/offers/' + el.dataset.status, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    loadOffers();
+  }
+  if (el.dataset.note) {
+    await api('/api/offers/' + el.dataset.note, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note: el.value }) });
+  }
+});
+$('#offers').addEventListener('click', ev => {
+  const id = ev.target.dataset.read;
+  if (id) api('/api/offers/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isNew: false }) }).then(loadOffers);
+});
+$('#companies').addEventListener('change', async ev => {
+  const key = ev.target.dataset.cstatus;
+  if (key) {
+    await api('/api/companies/' + encodeURIComponent(key), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: ev.target.value }) });
+    loadCompanies();
+  }
+});
+$('#companies').addEventListener('click', async ev => {
+  const btn = ev.target.closest('[data-contact]');
+  if (!btn) return;
+  const { contact, email, web } = btn.dataset;
+  if (email) window.location.href = `mailto:${email}?subject=${encodeURIComponent('Zájem o práci – vývoj softwaru')}&body=${encodeURIComponent(MAIL_BODY)}`;
+  else if (web) window.open(web, '_blank', 'noopener');
+  else window.open('https://www.google.com/search?q=' + encodeURIComponent(btn.closest('tr').children[0].textContent + ' kariéra'), '_blank', 'noopener');
+  await api('/api/companies/' + encodeURIComponent(contact), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'contacted' }) });
+  loadCompanies();
+});
+
+loadStatus().then(s => { if (s.running) poll(); });
+loadOffers();
+loadCompanies();
+</script>
+</body>
+</html>

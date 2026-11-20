@@ -1,0 +1,52 @@
+# Pravidla pro výběr nabídek. Aplikace tento soubor čte při každém stažení.
+# Formát: sekce ANO / JUNIOR / LEVEL / PRAXE / NE / TYP, na každém řádku slova oddělená čárkou.
+# Porovnává se bez diakritiky a bez ohledu na velikost písmen.
+# Řádek začínající "re:" je regulární výraz.
+#
+# JUNIOR = když pozice začíná tímto slovem, přebije LEVEL ("Junior projektový manažer" projde).
+#          Sám o sobě ale nabídku nepustí - musí mít shodu v ANO.
+# LEVEL  = úroveň pozice; v názvu vylučuje, ale JUNIOR na začátku názvu ho přebije.
+# PRAXE  = požadovaná praxe; vylučuje všude, i když název pozice sedí.
+# ANO    = co má nabídka obsahovat (název nebo popis). Patří sem profese a technologie, ne typ úvazku.
+# NE     = vylučovací všude (název i popis) - jiné profese než vývoj/test/analýza.
+# TYP    = jen štítek typu úvazku, nic nefiltruje.
+
+JUNIOR:
+
+Junior, Absolvent, Entry-level, Graduate, Bez praxe, Trainee, Internship, Studentská pozice
+
+LEVEL:
+
+Senior, Sr., Lead, Principal, Head of, Director, Chief, CTO, CIO, Manager, Manažer
+Architekt, Architect, Expert, Specialist, Supervisor
+
+PRAXE:
+
+3+ let, 5+ let, 3 roky praxe, 5 let praxe, 3+ years, 5+ years, minimum 3 years
+praxe nutností, prokazatelná praxe
+re:([3-9]|\d{2})\+?\s*(let|rok|roky)\s+(praxe|zkušeností|zkušenosti|v oboru|experience)
+re:(minim\w*|alespoň|aspoň|požadujeme)\D{0,25}([3-9]|\d{2})\+?\s*(let|rok|roky)
+
+ANO:
+
+Frontend developer, Backend developer, Full-stack vývojář, Web developer, Software engineer, Programátor
+Vývojář, Vývojářka, Developer, Programmer, Tester
+Angular, TypeScript, JavaScript, NestJS, Node.js
+React, Vue, Nuxt, Svelte, SvelteKit
+Java, C#, .NET, Unity, 3D
+Python, PHP, C++, Go, Kotlin, Swift, Flutter, Dart, Spring Boot, Blazor, WordPress, Shopify
+SQL, SQLite, PostgreSQL, MySQL, MSSQL, MongoDB, Databáze, TypeORM
+OOP, REST API, Git, Docker, Linux, CI/CD, Jenkins, GitLab, Jira, Confluence, Agile, Scrum
+QA tester, IT tester, Manual tester, Automation tester, Test engineer, Software tester, Quality Assurance
+IT analytik, Junior IT analytik, Junior projektový manažer, IT Project Coordinator, Scrum master
+Power BI, Figma, UI/UX
+
+TYP:
+
+Full-time, Plný úvazek, Zkrácený úvazek, Part-time, DPP, DPČ, Dohoda o provedení práce, Dohoda o pracovní činnosti, Brigáda
+
+NE:
+
+DevOps, System Administrator, Správce sítě, Administrátor sítě
+Helpdesk, Service desk, 1st line, První linie, Zákaznická podpora, Customer support, Customer care, Technická podpora, IT podpora
+Obchodník, Obchodní zástupce, Sales, Account manager, Konzultant, Business development
