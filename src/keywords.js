@@ -58,7 +58,50 @@ function startsJunior(rules, normalizedTitle) {
   return rules.JUNIOR.some(term => normalizedTitle.startsWith(normalize(term)));
 }
 
-export function matchOffer(rules, { title, description }) {
+// Pozor: text je už normalizovaný (bez diakritiky), proto i vzory musí být bez diakritiky.
+const ADVANTAGE = /vyhodou|vyhoda|vitan|vitana|vitane|nice to have|advantage|preferred|je plus|bonus/;
+const YEARS = String.raw`(?:let|roku|roky|rok|years?|yrs?)`;
+const NUMBER_WORDS = String.raw`(?:minim\w*|alespon|aspon|at least|min\.|vice nez|more than)`;
+
+// Najde požadavek na praxi v letech. Vrací nejnižší počet let, který inzerát vyžaduje,
+// a ignoruje zmínky označené jako výhoda ("2 roky praxe výhodou").
+export function detectExperience(text) {
+  const normalized = normalize(text);
+  const found = [];
+  const push = (years, index, length) => found.push({ years, index, length });
+
+  const windowHasAdvantage = (index, length) => {
+    const start = Math.max(0, index - 90);
+    return ADVANTAGE.test(normalized.slice(start, index + length + 90));
+  };
+
+  const addAll = (re, pick) => {
+    for (const m of normalized.matchAll(re)) {
+      const years = pick(m);
+      if (years !== null) push(years, m.index, m[0].length);
+    }
+  };
+
+  // "2 roky praxe", "5 let zkušeností", "1+ year of experience", "3 years' experience"
+  addAll(new RegExp(String.raw`(?<!\d)(\d{1,2})\s*\+?\s*${YEARS}\b[^.\n]{0,60}?(?:praxe|praxi|zkusenost\w*|experience|v oboru)`, 'g'), m => Number(m[1]));
+  addAll(new RegExp(String.raw`(?:praxe|praxi|zkusenost\w*|experience)[^.\n]{0,40}?(?<!\d)(\d{1,2})\s*\+?\s*${YEARS}\b`, 'g'), m => Number(m[1]));
+  // "minimálně 2 roky", "at least 2 years"
+  addAll(new RegExp(String.raw`${NUMBER_WORDS}\s*(?<!\d)(\d{1,2})\s*\+?\s*${YEARS}\b`, 'g'), m => Number(m[1]));
+  // rozsah "0-2 roky", "1–3 years" - rozhoduje spodní hranice
+  addAll(new RegExp(String.raw`(?<!\d)(\d{1,2})\s*[-–]\s*\d{1,2}\s*${YEARS}\b`, 'g'), m => Number(m[1]));
+  // bez čísla: "praxe nutností", "prokazatelná praxe", "several years"
+  addAll(/praxe\s+(?:nutnosti|podminkou|je nutna|je vyzadovana)/g, () => 1);
+  addAll(/prokazateln\w*\s+prax\w*/g, () => 1);
+  addAll(/(?:several|multiple|nekolik|vice)\s+(?:years|let|roky)/g, () => 3);
+
+  const relevant = found.filter(f => !windowHasAdvantage(f.index, f.length));
+  if (!relevant.length) return null;
+  relevant.sort((a, b) => a.years - b.years);
+  const best = relevant[0];
+  return { years: best.years, snippet: normalized.slice(Math.max(0, best.index - 40), best.index + best.length + 40).trim() };
+}
+
+export function matchOffer(rules, { title, description }, { hideFromYears = 1 } = {}) {
   const t = normalize(title);
   const d = normalize(description);
   const hit = (list, text) => list.find(term => pattern(term).test(text));
@@ -67,6 +110,10 @@ export function matchOffer(rules, { title, description }) {
   if (neTitle) return { keep: false, why: `název: ${neTitle}`, rank: 0 };
   const praxe = hit(rules.PRAXE, `${t} ${d}`);
   if (praxe) return { keep: false, why: `praxe: ${praxe}`, rank: 0 };
+  const experience = detectExperience(d);
+  if (experience && experience.years >= hideFromYears) {
+    return { keep: false, why: `praxe: ${experience.years}+ ${experience.years === 1 ? 'rok' : experience.years < 5 ? 'roky' : 'let'}`, rank: 0 };
+  }
   const junior = startsJunior(rules, t);
   const levelTitle = hit(rules.LEVEL, t);
   if (levelTitle && !junior) return { keep: false, why: `úroveň: ${levelTitle}`, rank: 0 };

@@ -67,7 +67,7 @@ export async function syncStartupjobs({ rules, log, db }) {
     const where = classifyLocation(config, offer);
     if (!where.keep) continue;
 
-    const verdict = matchOffer(rules, offer);
+    const verdict = matchOffer(rules, offer, { hideFromYears: config.hideIfRequiresYears });
     if (!verdict.keep) continue;
 
     let company = null;

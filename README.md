@@ -28,6 +28,8 @@ Porovnává se bez diakritiky a bez ohledu na velikost písmen. U anglických sl
 
 Každá nabídka má u sebe štítek, **proč** prošla filtrem (`název: Vývojář`, `popis: React`) — podle něj poznáš, co filtr pustil omylem, a doladíš slova.
 
+Kromě slov se z popisu vytahuje **požadovaná praxe**: vzory jako „2 roky praxe“, „minimálně 3 roky“, „1+ year of experience“, „At least 3 years' experience“, „praxe nutností“. Nabídka se schová, když požadavek dosáhne `hideIfRequiresYears` z `config.json` (výchozí 1 rok). Zmínky typu „2 roky praxe **výhodou**“ nebo „zkušenosti vítané“ se ignorují a nabídka zůstane.
+
 Lokalita: `config.json` → `cities` (HK, Pardubice) + remote. Slovenské nabídky projdou jen jako remote (`slovakiaRemoteOnly`).
 
 ## Ruční spuštění bez UI

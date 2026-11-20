@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyLocation, matchOffer, normalize, parseKeywords } from '../src/keywords.js';
+import { classifyLocation, detectExperience, matchOffer, normalize, parseKeywords } from '../src/keywords.js';
 
 const rules = parseKeywords(`
 JUNIOR:
@@ -73,4 +73,30 @@ test('lokalita: občasný home office není remote', () => {
   assert.equal(classifyLocation(config, { location: 'Praha – Kobylisy' }).keep, false);
   assert.equal(classifyLocation(config, { location: 'Možnost občasné práce z domova' }).keep, false);
   assert.equal(classifyLocation(config, { location: 'Práce z domova' }).keep, true);
+});
+
+test('detectExperience najde roky praxe česky i anglicky', () => {
+  assert.equal(detectExperience('Požadujeme 2 roky praxe v oboru.').years, 2);
+  assert.equal(detectExperience('Praxe 3 roky v oboru.').years, 3);
+  assert.equal(detectExperience('1+ year of AI/ML full-time software engineering experience').years, 1);
+  assert.equal(detectExperience("At least 3 years' experience in map design.").years, 3);
+  assert.equal(detectExperience('Minimálně 4 roky zkušeností s vývojem.').years, 4);
+});
+
+test('detectExperience ignoruje výhodu a rozsahy od nuly', () => {
+  assert.equal(detectExperience('2 roky praxe výhodou.'), null);
+  assert.equal(detectExperience('Zkušenosti s Reactem jsou vítané.'), null);
+  assert.equal(detectExperience('0–2 roky praxe.').years, 0);
+  assert.equal(detectExperience('Zkušenosti s TypeScriptem.'), null);
+});
+
+test('detectExperience pozná praxi bez čísla', () => {
+  assert.equal(detectExperience('Praxe nutností.').years, 1);
+  assert.equal(detectExperience('Požadujeme prokazatelnou praxi.').years, 1);
+});
+
+test('nabídka s požadovanou praxí vypadne, s praxí výhodou zůstane', () => {
+  assert.equal(matchOffer(rules, { title: 'Vývojář', description: 'Požadujeme 2 roky praxe.' }).keep, false);
+  assert.equal(matchOffer(rules, { title: 'Vývojář', description: '2 roky praxe výhodou.' }).keep, true);
+  assert.equal(matchOffer(rules, { title: 'Vývojář', description: 'Požadujeme 2 roky praxe.' }, { hideFromYears: 3 }).keep, true);
 });

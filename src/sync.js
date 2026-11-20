@@ -1,17 +1,17 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { root } from './config.js';
+import { config, root } from './config.js';
 import { loadKeywords, matchOffer } from './keywords.js';
 import { markStaleOffers, openDb, setMeta, upsertCompany, upsertOffer } from './db.js';
 import { syncJobsCz } from './sources/jobs-cz.js';
 import { syncStartupjobs } from './sources/startupjobs.js';
 
 // Přežene uložené nabídky aktuálními pravidly - změna Key words.txt se projeví bez stahování.
-export function refilter(db, rules) {
+export function refilter(db, rules, { hideFromYears = 1 } = {}) {
   const stmt = db.prepare('UPDATE offers SET match_why = ?, match_rank = ? WHERE id = ?');
   let kept = 0;
   for (const row of db.prepare('SELECT id, title, description FROM offers').all()) {
-    const verdict = matchOffer(rules, row);
+    const verdict = matchOffer(rules, row, { hideFromYears });
     if (verdict.keep) kept++;
     stmt.run(verdict.why, verdict.rank, row.id);
   }
@@ -21,7 +21,7 @@ export function refilter(db, rules) {
 export async function runSync({ log = () => {}, db = openDb(), only = null } = {}) {
   const rules = loadKeywords(path.join(root, 'Key words.txt'));
   const summary = {};
-  const refiltered = refilter(db, rules);
+  const refiltered = refilter(db, rules, { hideFromYears: config.hideIfRequiresYears });
   log(`přefiltrováno ${refiltered.total} uložených nabídek, ${refiltered.kept} odpovídá pravidlům`);
 
   for (const [name, source] of [['jobs.cz', syncJobsCz], ['startupjobs', syncStartupjobs]]) {

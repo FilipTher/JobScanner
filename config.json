@@ -6,6 +6,7 @@
   "companyDistricts": ["CZ0521", "CZ0531"],
   "allowRemote": true,
   "slovakiaRemoteOnly": true,
+  "hideIfRequiresYears": 1,
   "sources": {
     "jobsCz": {
       "enabled": true,

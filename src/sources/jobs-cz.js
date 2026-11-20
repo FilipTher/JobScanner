@@ -70,7 +70,7 @@ export async function syncJobsCz({ rules, log }) {
           continue;
         }
         const description = detail.description;
-        const verdict = matchOffer(rules, { title: card.title, description });
+        const verdict = matchOffer(rules, { title: card.title, description }, { hideFromYears: config.hideIfRequiresYears });
         if (!verdict.keep) continue;
 
         const salary = detail.salaryText ? parseSalary(detail.salaryText) : card.salary;
