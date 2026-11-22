@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSalary, stripHtml } from '../src/util.js';
-import { parseDetail, parseListing } from '../src/sources/jobs-cz.js';
+import { parseDetail, parseListing, parseNextPage } from '../src/sources/jobs-cz.js';
 import { normalizeOffer, parseSitemap } from '../src/sources/startupjobs.js';
 import { parseCsvLine } from '../src/companies.js';
 
@@ -33,6 +33,16 @@ test('parseListing vytáhne kartu jobs.cz', () => {
   assert.equal(card.location, 'Hradec Králové');
   assert.equal(card.remote, true);
   assert.equal(card.salary.salaryMin, 40000);
+});
+
+test('parseNextPage vezme odkaz z tlačítka Další', () => {
+  const html = `<ul class="Pagination">
+    <li><a class="Pagination__link Pagination__link--current" href="/prace/programator/?profession%5B0%5D=1">1</a></li>
+    <li><a class="Pagination__link" href="/prace/programator/?profession%5B0%5D=1&page=2">2</a></li>
+    <li><a class="Button Pagination__button--next" href="/prace/programator/?profession%5B0%5D=1&page=2">další</a></li>
+  </ul>`;
+  assert.equal(parseNextPage(html), 'https://www.jobs.cz/prace/programator/?profession%5B0%5D=1&page=2');
+  assert.equal(parseNextPage('<ul class="Pagination"></ul>'), null);
 });
 
 test('parseDetail vytáhne popis', () => {

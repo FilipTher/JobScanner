@@ -10,7 +10,7 @@
   "sources": {
     "jobsCz": {
       "enabled": true,
-      "professions": ["programator"],
+      "professions": ["programator", "tester", "it-analytik"],
       "maxPages": 20
     },
     "startupjobs": {

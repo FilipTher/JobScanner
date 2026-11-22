@@ -50,7 +50,7 @@ Město, zdroj, stav a fulltext (název + firma + popis). Stavy nabídky: nové �
 
 | Zdroj | Co dává | Poznámka |
 |---|---|---|
-| jobs.cz | nabídky + plný popis | scraping výpisů `/prace/{profese}/`, robots.txt povoluje; 1 req/s |
+| jobs.cz | nabídky + plný popis | scraping výpisů `/prace/{profese}/` (programátor, tester, IT analytik) s stránkováním podle odkazů na stránce; robots.txt povoluje; 1 req/s |
 | startupjobs.cz | nabídky, strukturovaný plat, remote | veřejné API `back.startupjobs.cz`, robots `Allow: /` |
 | ČSÚ RES | firmy v oboru IT (CZ-NACE 58/62/63) v okresech HK a Pardubice | open data, jednorázový import |
 | ARES | — | nevyužito: chybí hromadný filtr podle oboru |

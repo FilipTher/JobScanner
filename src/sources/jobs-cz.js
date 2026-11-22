@@ -28,8 +28,16 @@ export function parseListing(html) {
   }).get().filter(c => c.id && c.title);
 }
 
-export function parseDetail(html) {
+// Stránkování se musí brát z odkazů na stránce (obsahují profession[0]) - ručně skládané "?page=N"
+// občas vrátí znovu první stránku a část nabídek by se ztratila.
+export function parseNextPage(html, base = BASE) {
   const $ = cheerio.load(html);
+  const href = $('a.Pagination__button--next').attr('href');
+  if (!href) return null;
+  return href.startsWith('http') ? href : base + href;
+}
+
+export function parseDetail(html) {  const $ = cheerio.load(html);
   return {
     description: stripHtml($('[data-test=jd-body-richtext]').first().html() || ''),
     salaryText: $('[data-test=jd-salary]').first().text().trim(),
@@ -43,16 +51,17 @@ export async function syncJobsCz({ rules, log }) {
   const seenIds = new Set();
 
   for (const slug of professions) {
-    for (let page = 1; page <= maxPages; page++) {
-      // page=1 občas vrací jinou (kampaní) variantu stránky, proto bez parametru + jeden pokus navíc.
-      const url = page === 1 ? `${BASE}/prace/${slug}/` : `${BASE}/prace/${slug}/?page=${page}`;
-      let cards = parseListing(await getText(url));
+    let url = `${BASE}/prace/${slug}/`;
+    for (let page = 1; page <= maxPages && url; page++) {
+      let html = await getText(url);
+      let cards = parseListing(html);
       if (!cards.length) {
         await new Promise(r => setTimeout(r, 3000));
-        cards = parseListing(await getText(url));
+        html = await getText(url);
+        cards = parseListing(html);
         if (!cards.length) break;
       }
-      // Poslední stránky vrací znovu stejné "doporučené" karty - končíme, když nic nového.
+      const nextUrl = parseNextPage(html);
       const fresh = cards.filter(card => !seenIds.has(card.id));
       for (const card of fresh) seenIds.add(card.id);
       if (!fresh.length) break;
@@ -97,6 +106,8 @@ export async function syncJobsCz({ rules, log }) {
           result.companies.push({ name: card.company, city: where.city === 'remote' ? null : where.city, source: 'jobs.cz' });
         }
       }
+
+      url = nextUrl;
     }
   }
   return result;
